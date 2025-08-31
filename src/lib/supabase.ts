@@ -58,14 +58,16 @@ export const testSupabaseConnection = async () => {
     console.log('✅ Conexión a Supabase exitosa')
     return { success: true, data }
   } catch (error) {
-    console.error('❌ Error de red:', error)
+    console.warn('⚠️ Error de conectividad (esto es normal si no hay internet):', error instanceof Error ? error.message : 'Error desconocido')
     return { success: false, error: error instanceof Error ? error.message : 'Error desconocido' }
   }
 }
 
 // Probar conexión al inicializar (solo en desarrollo)
 if (import.meta.env.DEV) {
-  testSupabaseConnection()
+  testSupabaseConnection().catch(error => {
+    console.warn('⚠️ No se pudo probar la conexión inicial a Supabase:', error instanceof Error ? error.message : 'Error desconocido')
+  })
 }
 
 // Tipos para TypeScript
