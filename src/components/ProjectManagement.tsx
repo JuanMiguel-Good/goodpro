@@ -197,6 +197,9 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ selectedCompanyId
     descripcion: '',
     fechaInicio: ''
   });
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [recordFormats, setRecordFormats] = useState<any[]>([]);
+  const [recordEntries, setRecordEntries] = useState<any[]>([]);
 
   // Cargar datos al montar el componente
   useEffect(() => {
@@ -210,7 +213,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ selectedCompanyId
       console.log('🏢 Empresa seleccionada ID:', selectedCompanyId);
       
       // Cargar TODOS los proyectos (ya no filtramos por is_active porque queremos mostrar todos)
-      const [projectsResponse, companiesData, usersData, contactsData] = await Promise.all([
+      const [projectsResponse, companiesData, usersData, contactsData, documentsData, recordFormatsData, recordEntriesData] = await Promise.all([
         supabase.from('projects').select('*').order('sede'),
         DatabaseService.getCompanies(),
         supabase.from('users').select('*').eq('is_active', true).order('name'),
@@ -218,7 +221,10 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ selectedCompanyId
           *,
           user:users(id, name, email, telefono),
           project:projects(id, sede)
-        `).order('created_at')
+        `).order('created_at'),
+        supabase.from('documents').select('*'),
+        supabase.from('record_formats').select('*'),
+        supabase.from('record_entries').select('*')
       ]);
 
       const projectsData = projectsResponse.data || [];
@@ -227,7 +233,10 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ selectedCompanyId
         projects: projectsData?.length || 0,
         companies: companiesData?.length || 0,
         users: usersData?.data?.length || 0,
-        contacts: contactsData?.data?.length || 0
+        contacts: contactsData?.data?.length || 0,
+        documents: documentsData?.data?.length || 0,
+        recordFormats: recordFormatsData?.data?.length || 0,
+        recordEntries: recordEntriesData?.data?.length || 0
       });
 
       console.log('📋 Proyectos de BD:', projectsData?.map(p => ({
@@ -292,6 +301,9 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ selectedCompanyId
       setCompanies(formattedCompanies);
       setUsers(usersData?.data || []);
       setProjectContacts(contactsData?.data || []);
+      setDocuments(documentsData?.data || []);
+      setRecordFormats(recordFormatsData?.data || []);
+      setRecordEntries(recordEntriesData?.data || []);
     } catch (error) {
       console.error('❌ Error cargando datos:', error);
       alert(`Error cargando datos: ${error.message || error}`);
@@ -310,6 +322,23 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ selectedCompanyId
   const filteredProjects = projects.filter(project => project.companyId === selectedCompanyId);
   const selectedCompany = companies.find(c => c.id === selectedCompanyId);
 
+  // Calcular métricas por proyecto
+  const getProjectMetrics = (projectId: string) => {
+    const projectDocuments = documents.filter(doc => doc.project_id === projectId);
+    const projectRecordFormats = recordFormats.filter(format => format.project_id === projectId);
+    
+    // Calcular registros llenos basados en los record formats del proyecto
+    const projectRecordFormatIds = projectRecordFormats.map(rf => rf.id);
+    const projectRecordEntries = recordEntries.filter(entry => 
+      projectRecordFormatIds.includes(entry.record_format_id)
+    );
+    
+    return {
+      documents: projectDocuments.length,
+      recordFormats: projectRecordFormats.length,
+      recordEntries: projectRecordEntries.length
+    };
+  };
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -644,6 +673,9 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ selectedCompanyId
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredProjects.map(project => (
+          const metrics = getProjectMetrics(project.id);
+          
+          return (
           <div key={project.id} className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
             <div className="flex items-center space-x-3 mb-4">
               <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -662,6 +694,22 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ selectedCompanyId
 
             <div className="mb-4">
               <p className="text-sm text-gray-700 line-clamp-3">{project.descripcion}</p>
+            </div>
+
+            {/* Métricas del proyecto */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="text-center">
+                <p className="text-lg font-bold text-blue-600">{metrics.documents}</p>
+                <p className="text-xs text-gray-600">Documentos</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-purple-600">{metrics.recordFormats}</p>
+                <p className="text-xs text-gray-600">Registros Base</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-bold text-orange-600">{metrics.recordEntries}</p>
+                <p className="text-xs text-gray-600">Registros Llenos</p>
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -721,6 +769,8 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ selectedCompanyId
             </div>
           </div>
         ))}
+        );
+        })}
       </div>
 
       {filteredProjects.length === 0 && (
