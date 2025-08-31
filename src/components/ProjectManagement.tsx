@@ -672,7 +672,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ selectedCompanyId
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredProjects.map(project => (
+        {filteredProjects.map(project => {
           const metrics = getProjectMetrics(project.id);
           
           return (
@@ -768,8 +768,7 @@ const ProjectManagement: React.FC<ProjectManagementProps> = ({ selectedCompanyId
               </button>
             </div>
           </div>
-        ))}
-        );
+          );
         })}
       </div>
 
